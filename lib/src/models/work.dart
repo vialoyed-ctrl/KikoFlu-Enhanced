@@ -1,0 +1,442 @@
+import 'package:json_annotation/json_annotation.dart';
+import 'package:equatable/equatable.dart';
+import '../utils/string_utils.dart';
+
+part 'work.g.dart';
+
+@JsonSerializable()
+class Work extends Equatable {
+  final int id;
+  final String title;
+
+  @JsonKey(name: 'circle_id')
+  final int? circleId;
+
+  final String? name; // circle名称
+
+  final List<Va>? vas;
+  final List<Tag>? tags;
+  final String? age;
+  final String? release;
+
+  @JsonKey(name: 'dl_count')
+  final int? dlCount;
+
+  final int? price;
+
+  @JsonKey(name: 'review_count')
+  final int? reviewCount;
+
+  @JsonKey(name: 'rate_count')
+  final int? rateCount;
+
+  @JsonKey(name: 'rate_average_2dp')
+  final double? rateAverage;
+
+  @JsonKey(name: 'has_subtitle')
+  final bool? hasSubtitle;
+
+  final int? duration;
+
+  final String?
+      progress; // 收藏状态: marked, listening, listened, replay, postponed
+
+  @JsonKey(name: 'userRating')
+  final int? userRating; // 用户评分: 1-5星
+
+  @JsonKey(name: 'rate_count_detail')
+  final List<RatingDetail>? rateCountDetail; // 评分详情
+
+  final List<String>? images;
+  final String? description;
+  final List<AudioFile>? children;
+
+  @JsonKey(name: 'source_url')
+  final String? sourceUrl; // 作品原始链接
+
+  @JsonKey(name: 'source_id')
+  final String? sourceId; // 作品真实编号，如 RJ/BJ/VJ
+
+  @JsonKey(name: 'other_language_editions_in_db')
+  final List<OtherLanguageEdition>? otherLanguageEditions; // 其他语言版本
+
+  const Work({
+    required this.id,
+    required this.title,
+    this.circleId,
+    this.name,
+    this.vas,
+    this.tags,
+    this.age,
+    this.release,
+    this.dlCount,
+    this.price,
+    this.reviewCount,
+    this.rateCount,
+    this.rateAverage,
+    this.hasSubtitle,
+    this.duration,
+    this.progress,
+    this.userRating,
+    this.rateCountDetail,
+    this.images,
+    this.description,
+    this.children,
+    this.sourceUrl,
+    this.sourceId,
+    this.otherLanguageEditions,
+  });
+
+  factory Work.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic> processingJson = json;
+    bool isModified = false;
+
+    // ASMR.one/Kikoeru returns the age rating as age_category_string.
+    // Keep accepting age for custom servers that already use the app's field.
+    if ((processingJson['age'] == null ||
+            (processingJson['age'] is String &&
+                (processingJson['age'] as String).trim().isEmpty)) &&
+        processingJson['age_category_string'] != null) {
+      processingJson = Map<String, dynamic>.from(json);
+      processingJson['age'] = processingJson['age_category_string'];
+      isModified = true;
+    }
+
+    // 兼容 custom 服务端：如果 duration 为空，尝试从 memo.totalDuration 获取
+    if (processingJson['duration'] == null || processingJson['duration'] == 0) {
+      if (processingJson['memo'] != null && processingJson['memo'] is Map) {
+        final memo = processingJson['memo'] as Map;
+        if (memo['totalDuration'] != null && memo['totalDuration'] is num) {
+          if (!isModified) {
+            processingJson = Map<String, dynamic>.from(json);
+            isModified = true;
+          }
+          processingJson['duration'] = (memo['totalDuration'] as num).toInt();
+        }
+      }
+    }
+
+    // 兼容 custom 服务端：lyric_status 字段
+    // 仅当 has_subtitle 为 null 时才检查 lyric_status
+    // 如果 has_subtitle 明确为 false，则表示无字幕，不应被覆盖
+    if (processingJson['has_subtitle'] == null) {
+      final lyricStatus = processingJson['lyric_status'];
+      if (lyricStatus != null &&
+          lyricStatus is String &&
+          lyricStatus.isNotEmpty) {
+        if (!isModified) {
+          processingJson = Map<String, dynamic>.from(json);
+          isModified = true;
+        }
+        processingJson['has_subtitle'] = true;
+      }
+    }
+
+    return _$WorkFromJson(processingJson);
+  }
+
+  Map<String, dynamic> toJson() => _$WorkToJson(this);
+
+  String getCoverImageUrl(String baseUrl, {String? token}) {
+    String normalizedUrl = baseUrl;
+    if (baseUrl.isNotEmpty &&
+        !baseUrl.startsWith('http://') &&
+        !baseUrl.startsWith('https://')) {
+      normalizedUrl = 'https://$baseUrl';
+    }
+
+    if (token != null && token.isNotEmpty) {
+      return '$normalizedUrl/api/cover/$id?token=$token';
+    }
+    return '$normalizedUrl/api/cover/$id';
+  }
+
+  String get circleTitle => name ?? '';
+
+  String get displayId {
+    final normalizedSourceId = sourceId?.trim();
+    if (normalizedSourceId != null && normalizedSourceId.isNotEmpty) {
+      return normalizedSourceId;
+    }
+    return formatRJCode(id);
+  }
+
+  /// 创建 Work 的副本，可选择性地覆盖某些字段
+  Work copyWith({
+    int? id,
+    String? title,
+    int? circleId,
+    String? name,
+    List<Va>? vas,
+    List<Tag>? tags,
+    String? age,
+    String? release,
+    int? dlCount,
+    int? price,
+    int? reviewCount,
+    int? rateCount,
+    double? rateAverage,
+    bool? hasSubtitle,
+    int? duration,
+    String? progress,
+    int? userRating,
+    List<RatingDetail>? rateCountDetail,
+    List<String>? images,
+    String? description,
+    List<AudioFile>? children,
+    String? sourceUrl,
+    String? sourceId,
+    List<OtherLanguageEdition>? otherLanguageEditions,
+  }) {
+    return Work(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      circleId: circleId ?? this.circleId,
+      name: name ?? this.name,
+      vas: vas ?? this.vas,
+      tags: tags ?? this.tags,
+      age: age ?? this.age,
+      release: release ?? this.release,
+      dlCount: dlCount ?? this.dlCount,
+      price: price ?? this.price,
+      reviewCount: reviewCount ?? this.reviewCount,
+      rateCount: rateCount ?? this.rateCount,
+      rateAverage: rateAverage ?? this.rateAverage,
+      hasSubtitle: hasSubtitle ?? this.hasSubtitle,
+      duration: duration ?? this.duration,
+      progress: progress ?? this.progress,
+      userRating: userRating ?? this.userRating,
+      rateCountDetail: rateCountDetail ?? this.rateCountDetail,
+      images: images ?? this.images,
+      description: description ?? this.description,
+      children: children ?? this.children,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      sourceId: sourceId ?? this.sourceId,
+      otherLanguageEditions:
+          otherLanguageEditions ?? this.otherLanguageEditions,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        title,
+        circleId,
+        name,
+        vas,
+        tags,
+        age,
+        release,
+        dlCount,
+        price,
+        reviewCount,
+        rateCount,
+        rateAverage,
+        hasSubtitle,
+        duration,
+        progress,
+        userRating,
+        rateCountDetail,
+        images,
+        description,
+        children,
+        sourceUrl,
+        sourceId,
+        otherLanguageEditions,
+      ];
+}
+
+@JsonSerializable()
+class OtherLanguageEdition extends Equatable {
+  final int id;
+  final String lang;
+  final String title;
+
+  @JsonKey(name: 'source_id')
+  final String sourceId;
+
+  @JsonKey(name: 'is_original')
+  final bool isOriginal;
+
+  @JsonKey(name: 'source_type')
+  final String sourceType;
+
+  const OtherLanguageEdition({
+    required this.id,
+    required this.lang,
+    required this.title,
+    required this.sourceId,
+    required this.isOriginal,
+    required this.sourceType,
+  });
+
+  factory OtherLanguageEdition.fromJson(Map<String, dynamic> json) =>
+      _$OtherLanguageEditionFromJson(json);
+
+  Map<String, dynamic> toJson() => _$OtherLanguageEditionToJson(this);
+
+  @override
+  List<Object?> get props =>
+      [id, lang, title, sourceId, isOriginal, sourceType];
+}
+
+@JsonSerializable()
+class RatingDetail extends Equatable {
+  @JsonKey(name: 'review_point')
+  final int reviewPoint;
+
+  final int count;
+  final int ratio;
+
+  const RatingDetail({
+    required this.reviewPoint,
+    required this.count,
+    required this.ratio,
+  });
+
+  factory RatingDetail.fromJson(Map<String, dynamic> json) =>
+      _$RatingDetailFromJson(json);
+
+  Map<String, dynamic> toJson() => _$RatingDetailToJson(this);
+
+  @override
+  List<Object?> get props => [reviewPoint, count, ratio];
+}
+
+@JsonSerializable()
+class Circle extends Equatable {
+  final int id;
+
+  @JsonKey(name: 'name')
+  final String title;
+
+  const Circle({required this.id, required this.title});
+
+  factory Circle.fromJson(Map<String, dynamic> json) => _$CircleFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CircleToJson(this);
+
+  @override
+  List<Object?> get props => [id, title];
+}
+
+@JsonSerializable()
+class Va extends Equatable {
+  final String id;
+  final String name;
+
+  const Va({required this.id, required this.name});
+
+  factory Va.fromJson(Map<String, dynamic> json) => _$VaFromJson(json);
+
+  Map<String, dynamic> toJson() => _$VaToJson(this);
+
+  @override
+  List<Object?> get props => [id, name];
+}
+
+@JsonSerializable()
+class Tag extends Equatable {
+  final int id;
+  final String name;
+  final int? upvote; // 支持投票数量
+  final int? downvote; // 反对投票数量
+
+  @JsonKey(name: 'myVote')
+  final int? myVote; // 我的投票状态：0=未投票，1=支持，2=反对
+
+  @JsonKey(name: 'voteStatus')
+  final int? voteStatus; // 标签来源：1=作品默认标签，0=用户添加的标签（仅官方服务器）
+
+  const Tag({
+    required this.id,
+    required this.name,
+    this.upvote,
+    this.downvote,
+    this.myVote,
+    this.voteStatus,
+  });
+
+  /// 是否为用户添加的标签（非默认标签）
+  bool get isUserAdded => voteStatus == 0;
+
+  factory Tag.fromJson(Map<String, dynamic> json) => _$TagFromJson(json);
+
+  Map<String, dynamic> toJson() => _$TagToJson(this);
+
+  @override
+  List<Object?> get props => [id, name, upvote, downvote, myVote, voteStatus];
+}
+
+@JsonSerializable()
+class AudioFile extends Equatable {
+  final String title;
+  final String? type;
+  final String? hash;
+  final List<AudioFile>? children;
+
+  @JsonKey(name: 'mediaDownloadUrl')
+  final String? mediaDownloadUrl;
+
+  final int? size;
+  final dynamic duration; // 时长（秒），可能是 int 或 double
+
+  const AudioFile({
+    required this.title,
+    this.type,
+    this.hash,
+    this.children,
+    this.mediaDownloadUrl,
+    this.size,
+    this.duration,
+  });
+
+  factory AudioFile.fromJson(Map<String, dynamic> json) =>
+      _$AudioFileFromJson(json);
+
+  Map<String, dynamic> toJson() => _$AudioFileToJson(this);
+
+  bool get isFolder => type == 'folder';
+
+  bool get isAudio {
+    if (type == 'audio') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.mp3') ||
+        lowerTitle.endsWith('.wav') ||
+        lowerTitle.endsWith('.flac') ||
+        lowerTitle.endsWith('.m4a') ||
+        lowerTitle.endsWith('.aac') ||
+        lowerTitle.endsWith('.ogg') ||
+        lowerTitle.endsWith('.wma') ||
+        lowerTitle.endsWith('.opus') ||
+        lowerTitle.endsWith('.m4b');
+  }
+
+  bool get isText {
+    if (type == 'text') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.txt') ||
+        lowerTitle.endsWith('.vtt') ||
+        lowerTitle.endsWith('.srt') ||
+        lowerTitle.endsWith('.lrc') ||
+        lowerTitle.endsWith('.md') ||
+        lowerTitle.endsWith('.log') ||
+        lowerTitle.endsWith('.json') ||
+        lowerTitle.endsWith('.xml');
+  }
+
+  bool get isImage {
+    if (type == 'image') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.jpg') ||
+        lowerTitle.endsWith('.jpeg') ||
+        lowerTitle.endsWith('.png') ||
+        lowerTitle.endsWith('.gif') ||
+        lowerTitle.endsWith('.bmp') ||
+        lowerTitle.endsWith('.webp');
+  }
+
+  @override
+  List<Object?> get props =>
+      [title, type, hash, children, mediaDownloadUrl, size, duration];
+}

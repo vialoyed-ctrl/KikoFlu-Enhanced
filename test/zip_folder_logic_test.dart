@@ -1,0 +1,172 @@
+import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kikoeru_flutter/src/services/subtitle_library_rules.dart';
+
+Archive archiveWithPaths(List<String> paths) {
+  final archive = Archive();
+  for (final path in paths) {
+    archive.addFile(ArchiveFile.string(path, 'content'));
+  }
+  return archive;
+}
+
+void main() {
+  group('ZIP智能路径判断测试', () {
+    test('多个根目录项 - 需要创建文件夹', () {
+      final rootItems = ['folder1', 'folder2', 'file.txt'];
+      const zipName = 'archive';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true,
+          reason: '多个根目录项应该创建文件夹');
+    });
+
+    test('单个文件夹且名称与ZIP相同 - 不需要创建文件夹', () {
+      final rootItems = ['RJ123456'];
+      const zipName = 'RJ123456';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), false,
+          reason: '文件夹名与ZIP名相同，应该直接解压');
+    });
+
+    test('单个文件夹但名称与ZIP不同 - 需要创建文件夹', () {
+      final rootItems = ['subfolder'];
+      const zipName = 'RJ123456';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true,
+          reason: '文件夹名与ZIP名不同，应该创建ZIP命名的文件夹');
+    });
+
+    test('实际场景1: RJ123456.zip包含RJ123456文件夹', () {
+      final rootItems = ['RJ123456'];
+      const zipName = 'RJ123456';
+
+      expect(SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName),
+          false);
+      // 结果: 直接解压到 已解析/RJ123456/
+    });
+
+    test('实际场景2: RJ123456.zip包含data文件夹', () {
+      final rootItems = ['data'];
+      const zipName = 'RJ123456';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true);
+      // 结果: 创建 已解析/RJ123456/data/
+    });
+
+    test('实际场景3: collection.zip包含多个文件夹', () {
+      final rootItems = ['RJ123456', 'RJ234567', 'readme.txt'];
+      const zipName = 'collection';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true);
+      // 结果: 创建 未知作品/collection/ 然后递归处理内部
+    });
+
+    test('实际场景4: RJ123456.zip包含Album文件夹', () {
+      final rootItems = ['Album'];
+      const zipName = 'RJ123456';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true);
+      // 结果: 创建 已解析/RJ123456/Album/
+    });
+
+    test('实际场景5: MyMusic.zip包含MyMusic文件夹', () {
+      final rootItems = ['MyMusic'];
+      const zipName = 'MyMusic';
+
+      expect(SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName),
+          false);
+      // 结果: 直接解压到 未知作品/MyMusic/
+    });
+
+    test('边界情况: 空根目录', () {
+      final rootItems = <String>[];
+      const zipName = 'archive';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true,
+          reason: '空根目录视为需要创建文件夹');
+    });
+
+    test('大小写敏感测试', () {
+      final rootItems = ['rj123456'];
+      const zipName = 'RJ123456';
+
+      expect(
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName), true,
+          reason: '大小写不同视为不同名称');
+    });
+
+    test('从 Archive 提取根目录项', () {
+      final archive = archiveWithPaths([
+        'RJ111111/track1.lrc',
+        'RJ222222/track2.srt',
+        'readme.txt',
+      ]);
+
+      expect(
+        SubtitleLibraryRules.archiveRootItems(archive),
+        {'RJ111111', 'RJ222222', 'readme.txt'},
+      );
+      expect(
+        SubtitleLibraryRules.shouldCreateNewFolderForArchive(
+          archive,
+          'Collection',
+        ),
+        true,
+      );
+    });
+  });
+
+  group('完整导入流程模拟', () {
+    test('场景A: 标准RJ压缩包', () {
+      // RJ123456.zip
+      //   └── RJ123456/
+      //       ├── track1.lrc
+      //       └── track2.srt
+
+      final rootItems = ['RJ123456'];
+      const zipName = 'RJ123456';
+      final needFolder =
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName);
+
+      expect(needFolder, false);
+      debugPrint('✓ RJ123456.zip → 已解析/RJ123456/ (直接解压)');
+    });
+
+    test('场景B: 包含子文件夹的RJ压缩包', () {
+      // RJ234567.zip
+      //   └── Audio/
+      //       └── track.lrc
+
+      final rootItems = ['Audio'];
+      const zipName = 'RJ234567';
+      final needFolder =
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName);
+
+      expect(needFolder, true);
+      debugPrint('✓ RJ234567.zip → 已解析/RJ234567/Audio/ (创建文件夹)');
+    });
+
+    test('场景C: 多个RJ的集合包', () {
+      // Collection.zip
+      //   ├── RJ111111/
+      //   ├── RJ222222/
+      //   └── RJ333333/
+
+      final rootItems = ['RJ111111', 'RJ222222', 'RJ333333'];
+      const zipName = 'Collection';
+      final needFolder =
+          SubtitleLibraryRules.shouldCreateNewFolder(rootItems, zipName);
+
+      expect(needFolder, true);
+      debugPrint('✓ Collection.zip → 临时解压 → 递归识别各个RJ目录');
+    });
+  });
+}

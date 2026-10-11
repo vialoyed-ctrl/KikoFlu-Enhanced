@@ -1,0 +1,179 @@
+import 'dart:io';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import '../models/account.dart';
+
+class AccountDatabase {
+  static final AccountDatabase instance = AccountDatabase._init();
+  static Database? _database;
+
+  AccountDatabase._init();
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB('accounts.db');
+    return _database!;
+  }
+
+  Future<Database> _initDB(String filePath) async {
+    final String dbPath;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // For desktop platforms, use application documents directory
+      final appDocDir = await getApplicationDocumentsDirectory();
+      dbPath = join(appDocDir.path, 'KikoFlu');
+      // Create directory if it doesn't exist
+      await Directory(dbPath).create(recursive: true);
+    } else {
+      // For mobile platforms, use default path
+      dbPath = await getDatabasesPath();
+    }
+    final path = join(dbPath, filePath);
+
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
+  }
+
+  Future<void> _createDB(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        host TEXT NOT NULL,
+        isActive INTEGER NOT NULL DEFAULT 0,
+        serverCookie TEXT,
+        createdAt TEXT,
+        lastUsedAt TEXT
+      )
+    ''');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE accounts ADD COLUMN serverCookie TEXT');
+    }
+  }
+
+  Future<Account> createAccount(Account account) async {
+    final db = await database;
+
+    late final int id;
+    await db.transaction((txn) async {
+      // Deactivate all other accounts if this one is active
+      if (account.isActive) {
+        await txn.update(
+          'accounts',
+          {'isActive': 0},
+          where: 'isActive = ?',
+          whereArgs: [1],
+        );
+      }
+
+      id = await txn.insert('accounts', account.toMap());
+    });
+    return account.copyWith(id: id);
+  }
+
+  Future<Account?> getAccount(int id) async {
+    final db = await database;
+
+    final maps = await db.query(
+      'accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return Account.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<List<Account>> getAllAccounts() async {
+    final db = await database;
+    final maps = await db.query('accounts', orderBy: 'lastUsedAt DESC');
+    return maps.map((map) => Account.fromMap(map)).toList();
+  }
+
+  Future<Account?> getActiveAccount() async {
+    final db = await database;
+
+    final maps = await db.query(
+      'accounts',
+      where: 'isActive = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) {
+      return Account.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<int> updateAccount(Account account) async {
+    final db = await database;
+
+    late final int result;
+    await db.transaction((txn) async {
+      // If setting this account as active, deactivate others
+      if (account.isActive) {
+        await txn.update(
+          'accounts',
+          {'isActive': 0},
+          where: 'isActive = ? AND id != ?',
+          whereArgs: [1, account.id],
+        );
+      }
+
+      result = await txn.update(
+        'accounts',
+        account.toMap(),
+        where: 'id = ?',
+        whereArgs: [account.id],
+      );
+    });
+    return result;
+  }
+
+  Future<int> deleteAccount(int id) async {
+    final db = await database;
+    return await db.delete(
+      'accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> setActiveAccount(int id) async {
+    final db = await database;
+
+    late final int result;
+    await db.transaction((txn) async {
+      // Deactivate all accounts
+      await txn.update('accounts', {'isActive': 0});
+
+      // Activate the selected account and update lastUsedAt
+      result = await txn.update(
+        'accounts',
+        {
+          'isActive': 1,
+          'lastUsedAt': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+    return result;
+  }
+
+  Future<void> close() async {
+    final db = await database;
+    await db.close();
+  }
+}

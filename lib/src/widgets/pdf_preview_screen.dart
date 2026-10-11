@@ -1,0 +1,332 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../services/cache_service.dart';
+import '../services/storage_service.dart';
+import '../utils/local_file_url.dart';
+import '../../l10n/app_localizations.dart';
+import 'scrollable_appbar.dart';
+
+/// PDF预览屏幕
+class PdfPreviewScreen extends StatefulWidget {
+  final String title;
+  final String pdfUrl;
+  final int? workId;
+  final String? hash;
+
+  const PdfPreviewScreen({
+    super.key,
+    required this.title,
+    required this.pdfUrl,
+    this.workId,
+    this.hash,
+  });
+
+  @override
+  State<PdfPreviewScreen> createState() => _PdfPreviewScreenState();
+}
+
+class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  String? _localFilePath;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  PDFViewController? _pdfViewController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPdf();
+  }
+
+  @override
+  void dispose() {
+    // 不删除任何文件,让临时文件作为缓存使用
+    super.dispose();
+  }
+
+  Future<void> _loadPdf() async {
+    final s = S.of(context);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 优先检查是否是本地文件（file:// 协议）
+      final localPath = LocalFileUrl.pathFromUrl(widget.pdfUrl);
+      if (localPath != null) {
+        final localFile = File(localPath);
+
+        if (await localFile.exists()) {
+          if (!mounted) return;
+          if (await _openDesktopPdf(localPath)) return;
+
+          setState(() {
+            _localFilePath = localPath;
+            _isLoading = false;
+          });
+          return;
+        } else {
+          if (!mounted) return;
+          setState(() {
+            _errorMessage = s.localPdfNotExist;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      if (widget.workId != null &&
+          widget.hash != null &&
+          widget.hash!.isNotEmpty) {
+        final cachedPath = await CacheService.getCachedFileResource(
+          workId: widget.workId!,
+          hash: widget.hash!,
+          fileType: 'pdf',
+        );
+        if (!mounted) return;
+
+        if (cachedPath != null) {
+          if (await _openDesktopPdf(cachedPath)) return;
+
+          setState(() {
+            _localFilePath = cachedPath;
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final dio = Dio();
+        dio.options.headers.addAll(StorageService.serverCookieHeaders);
+
+        final newCachedPath = await CacheService.cacheFileResource(
+          workId: widget.workId!,
+          hash: widget.hash!,
+          fileType: 'pdf',
+          url: widget.pdfUrl,
+          dio: dio,
+        );
+        if (!mounted) return;
+
+        if (newCachedPath != null) {
+          if (await _openDesktopPdf(newCachedPath)) return;
+
+          setState(() {
+            _localFilePath = newCachedPath;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      final dio = Dio();
+      final tempDir = await getTemporaryDirectory();
+      if (!mounted) return;
+      final fileName = 'temp_pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final filePath = path.join(tempDir.path, fileName);
+
+      await dio.download(
+        widget.pdfUrl,
+        filePath,
+        options: Options(
+          receiveTimeout: const Duration(seconds: 60),
+          headers: StorageService.serverCookieHeaders,
+        ),
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            debugPrint('下载进度: ${(received / total * 100).toStringAsFixed(0)}%');
+          }
+        },
+      );
+      if (!mounted) return;
+
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        if (await _openDesktopPdf(filePath)) return;
+        throw Exception(s.cannotOpenPdf);
+      }
+
+      setState(() {
+        _localFilePath = filePath;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = s.loadPdfFailed(e.toString());
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<bool> _openDesktopPdf(String filePath) async {
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      return false;
+    }
+
+    final uri = Uri.file(filePath);
+    if (!await canLaunchUrl(uri)) {
+      return false;
+    }
+
+    await launchUrl(uri);
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: ScrollableAppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: const TextStyle(fontSize: 16),
+            ),
+            if (_totalPages > 0)
+              Text(
+                S.of(context).pdfPageOfTotal(_currentPage + 1, _totalPages),
+                style: const TextStyle(fontSize: 12),
+              ),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          if (_localFilePath != null && _totalPages > 1) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios),
+              onPressed: _currentPage > 0
+                  ? () => _pdfViewController?.setPage(_currentPage - 1)
+                  : null,
+              tooltip: S.of(context).previousPage,
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios),
+              onPressed: _currentPage < _totalPages - 1
+                  ? () => _pdfViewController?.setPage(_currentPage + 1)
+                  : null,
+              tooltip: S.of(context).nextPage,
+            ),
+          ],
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(S.of(context).loadingPdf),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadPdf,
+                child: Text(S.of(context).retry),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_localFilePath == null) {
+      return Center(child: Text(S.of(context).pdfPathInvalid));
+    }
+
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.desktop_access_disabled,
+                size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(S.of(context).desktopPdfPreviewNotSupported),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final Uri uri = Uri.file(_localFilePath!);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri);
+                } else {
+                  // Fallback for Windows if canLaunchUrl fails for file URI
+                  if (Platform.isWindows) {
+                    await Process.run('explorer', [_localFilePath!]);
+                  } else if (Platform.isLinux) {
+                    await Process.run('xdg-open', [_localFilePath!]);
+                  }
+                }
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: Text(S.of(context).openWithSystemApp),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return PDFView(
+      filePath: _localFilePath!,
+      enableSwipe: true,
+      swipeHorizontal: false,
+      autoSpacing: true,
+      pageFling: true,
+      pageSnap: true,
+      fitPolicy: FitPolicy.BOTH,
+      onRender: (pages) {
+        setState(() => _totalPages = pages ?? 0);
+      },
+      onViewCreated: (PDFViewController controller) {
+        _pdfViewController = controller;
+      },
+      onPageChanged: (page, total) {
+        setState(() {
+          _currentPage = page ?? 0;
+          _totalPages = total ?? 0;
+        });
+      },
+      onError: (error) {
+        setState(() =>
+            _errorMessage = S.of(context).renderPdfFailed(error.toString()));
+      },
+    );
+  }
+}

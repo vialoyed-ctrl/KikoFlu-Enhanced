@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(kikodsp LANGUAGES CXX)
+add_library(kikodsp SHARED dsp_jni.cpp)
+target_compile_features(kikodsp PRIVATE cxx_std_17)
+target_compile_options(kikodsp PRIVATE -Wall -Wextra)
