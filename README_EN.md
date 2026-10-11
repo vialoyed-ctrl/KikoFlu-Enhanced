@@ -87,17 +87,10 @@ This is an independent modified version of [pa-jesusf/KikoFlu](https://github.co
 
 ## Download
 
-Go to [Releases](https://github.com/pa-jesusf/KikoFlu/releases/latest) for the latest version.
+Go to [Releases](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/latest) for the latest version.
 
 Platforms: Android (universal / arm64-v8a), iOS (unsigned IPA), Windows (installer / portable), macOS (DMG), Linux (x64 / arm64)
 
-### AltStore / SideStore
-
-iOS users can add the KikoFlu source to AltStore or SideStore for easy installation and updates:
-
-**Source URL:** `https://raw.githubusercontent.com/pa-jesusf/KikoFlu/main/altstore-source.json`
-
----
 
 ## Build from Source
 
@@ -106,8 +99,8 @@ iOS users can add the KikoFlu source to AltStore or SideStore for easy installat
 - Dart SDK 3.0+
 
 ```bash
-git clone https://github.com/pa-jesusf/KikoFlu.git
-cd KikoFlu
+git clone https://github.com/vialoyed-ctrl/KikoFlu-Enhanced.git
+cd KikoFlu-Enhanced
 flutter pub get
 ```
 

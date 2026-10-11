@@ -3,6 +3,12 @@
 基于 [pa-jesusf/KikoFlu](https://github.com/pa-jesusf/KikoFlu) 3.8.2 的独立修改版。
 原项目作者及贡献者保留其版权。本项目不是原作者的官方版本，也不代表原作者背书。
 
+## 下载修改版
+
+[Android arm64 APK — 3.8.2+2006](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/download/v3.8.2-enhanced.2006/KikoFlu-Enhanced-3.8.2-2006-arm64.apk)
+
+包名 `com.meteor.kikoeruflutter.dspcheck`，应用名 **KikoFlu DSP**。与已安装的 DSP 测试版一致，可覆盖安装；与原版包名不同。此包使用开发签名，尚未配置正式发行签名。
+
 ## 修改内容（2026-10-11）
 
 - Android 音效设置：均衡器、立体声扩展及可调整参数。
@@ -30,7 +36,7 @@ flutter build apk --release --target-platform android-arm64
 `third_party/` 中的本地插件源码必须保留。SDK 路径和签名配置请在本机配置，仓库不包含签名密钥。
 如需沿用测试版包名，可在 Android Gradle 构建时传入 `-PkikoApplicationId=com.meteor.kikoeruflutter.dspcheck`。
 Android 未配置 release keystore 时现有构建脚本使用 debug 签名；正式分发请配置自己的签名。
-本仓库仅上传源码，不附带个人安装包、账号配置、媒体、字幕库、截图或设备日志。
+修改版 Android 安装包见 [Releases](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/latest)。仓库不包含个人账号配置、媒体、字幕库、截图或设备日志。
 
 ## 验证记录
 
@@ -39,7 +45,7 @@ Android 未配置 release keystore 时现有构建脚本使用 debug 签名；�
 
 ---
 
-以下是保留的上游说明，其中上游下载、问题反馈及更新链接指向原作者项目。
+以下保留上游功能说明。修改版下载和源码链接已改为本仓库；上游反馈链接仍指向原作者项目。当前修改版 Release 仅提供 Android arm64 安装包，其他平台介绍仅描述上游能力。
 
 <div align="center">
   <img src="assets/icons/app_icon_opaque.png" alt="KikoFlu" width="120" height="120">
@@ -126,17 +132,10 @@ Android 未配置 release keystore 时现有构建脚本使用 debug 签名；�
 
 ## 下载
 
-前往 [Releases](https://github.com/pa-jesusf/KikoFlu/releases/latest) 下载最新版本。
+前往 [Releases](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/latest) 下载最新版本。
 
 支持平台：Android（universal / arm64-v8a）、iOS（未签名 IPA）、Windows（安装包 / 便携版）、macOS（DMG）、Linux（x64 / arm64）
 
-### AltStore / SideStore
-
-iOS 用户可通过 AltStore 或 SideStore 添加软件源来安装和更新 KikoFlu：
-
-**源地址：** `https://raw.githubusercontent.com/pa-jesusf/KikoFlu/main/altstore-source.json`
-
----
 
 ## 源码构建
 
@@ -145,8 +144,8 @@ iOS 用户可通过 AltStore 或 SideStore 添加软件源来安装和更新 Kik
 - Dart SDK 3.12.1+
 
 ```bash
-git clone https://github.com/pa-jesusf/KikoFlu.git
-cd KikoFlu
+git clone https://github.com/vialoyed-ctrl/KikoFlu-Enhanced.git
+cd KikoFlu-Enhanced
 flutter pub get
 ```
 
