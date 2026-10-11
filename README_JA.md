@@ -1,131 +1,34 @@
-This is an independent modified version of [pa-jesusf/KikoFlu](https://github.com/pa-jesusf/KikoFlu), based on 3.8.2. See [README.md](README.md) for changes dated 2026-10-11, build instructions and GPL-3.0 licensing. Original copyright and license notices are retained.
+# KikoFlu Enhanced
 
----
+[简体中文](README.md) · [English](README_EN.md)
 
-<div align="center">
-  <img src="assets/icons/app_icon_opaque.png" alt="KikoFlu" width="120" height="120">
+バックグラウンド再生、字幕、オフライン保存、音響調整に対応した Kikoeru 音声・動画クライアント。
 
-  # KikoFlu
-
-  [English](README_EN.md) | 日本語 | [简体中文](README.md)
-  
-  クロスプラットフォーム同人音声クライアント。Kikoeru 自前サーバーおよびオンラインサービスに対応。
-
-  [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
-  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#)
-  [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-
-
-</div>
-
-<div align="center">
-  <img src="screenshots/8.png" width="900" alt="KikoFlu スクリーンショット">
-</div>
+[ダウンロード](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/latest) · [不具合報告](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/issues)
 
 ## 機能
 
-### 🎵 メディア再生
-- バックグラウンド再生と自動キャッシュ
-- ミニプレーヤー、再生項目、再生位置の永続化
-- 再生速度調整
-- リピート（単曲 / リスト）・シャッフル再生
-- グローバル音声ゲイン（減衰 / 増幅）
-- 音声ハプティクス（Beta）：モバイル端末で音声特徴に応じた振動を制御
-- マルチフォーマット対応：音声、動画、テキスト、画像、PDF など
-- 作品全体または選択的ダウンロード、並行ダウンロード管理
-- オフラインダウンロードの検索・並べ替え
-- ローカルインポート作品のメタデータ認識
+- 音声・動画再生、再生速度の変更、バックグラウンド再生、再生位置の保存。
+- 調整可能なイコライザーとステレオ拡張。
+- 字幕の読み込み、翻訳、タイミング調整、ライブラリ管理。
+- 時間または字幕区間での早送り・巻き戻し。方向ごとに設定可能。
+- 全画面動画のジェスチャー操作で再生位置、明るさ、音量を調整。
+- ホームからの検索、スペース区切りのキーワード、タグ検索・コピー、検索履歴。
+- カスタムサーバー、複数アカウント、オフライン保存、キャッシュ管理。
 
-### 📝 字幕システム
-- 字幕自動読み込み
-- 字幕のインポート、編集、タイミング調整
-- `.vtt`、`.srt`、`.lrc`、`.txt`、`.ass`、`.ssa`、`.sub`、`.idx`、`.sbv`、`.dfxp`、`.ttml` に対応
-- 再生中のリアルタイム字幕・歌詞翻訳
-- プレイヤー内で再生中字幕を翻訳し、完了後すぐに表示・保存
-- 歌詞 / 字幕の全画面表示
-- 字幕ライブラリ（SQLite インデックス、高速検索）
-- 保存先ディレクトリのカスタマイズ、ドライブ間コピー対応
+## ビルド
 
-### 🎨 インターフェース
-- 全プラットフォーム対応（Android / iOS / Windows / macOS / Linux）
-- Material Design 3
-- Liquid Glass ナビゲーションとミニプレーヤー（Apple 系 26+ プラットフォームではデフォルトで有効、その他では互換モードを使用）
-- 横画面モード対応
-- ライト・ダークテーマ
-- タイトル、ファイルディレクトリ、テキストファイルの翻訳
-- タグ自動翻訳（中国語 / 英語 / 日本語）
-- プライバシーモード
-- 評価システム
-- おすすめ作品
+Flutter 3.44.1+、Dart 3.12.1+。
 
-### 🔍 検索
-- 高度な検索（複数タグ / 除外タグ対応）
-- 多次元フィルタ（タグ、評価、発売日など）
-- 作品情報の詳細表示
-
-### 🌐 多言語対応
-- 简体中文 / 繁體中文 / English / 日本語 / Русский
-- 多形式・多言語翻訳に対応
-
-### ⚙️ 設定
-- マルチアカウント対応
-- カスタムサーバーアドレス（[ガイド](https://github.com/pa-jesusf/KikoFlu/wiki/%E4%BD%BF%E7%94%A8%E8%87%AA%E5%BB%BA%E5%90%8E%E7%AB%AF%E6%9C%8D%E5%8A%A1%E5%99%A8)）、接続遅延テスト可能
-- キャッシュサイズ制限とクリーンアップ戦略
-- テーマ・カラースキームのカスタマイズ
-- 翻訳ターゲット言語を個別に設定可能、LLM モードではカスタム言語入力に対応
-- 字幕ライブラリ優先度、音声形式、プリロード、音声ゲインなどの再生設定
-- 豊富な UI カスタマイズオプション
-- アプリ内ログシステム（エクスポート対応）
-- アップデートチェック
-
-### 📝 フローティング字幕
-- Android、iOS、Windows、macOS、Linux に対応
-- Android はロック / アンロックとタッチパススルー、デスクトップはクリック透過に対応
-- iOS はシステムのピクチャ・イン・ピクチャを使用
-
----
-
-## ダウンロード
-
-最新バージョンは [Releases](https://github.com/vialoyed-ctrl/KikoFlu-Enhanced/releases/latest) からダウンロードできます。
-
-対応プラットフォーム：Android（universal / arm64-v8a）、iOS（未署名 IPA）、Windows（インストーラー / ポータブル）、macOS（DMG）、Linux（x64 / arm64）
-
-
-## ソースからビルド
-
-### 必要環境
-- Flutter SDK 3.0+
-- Dart SDK 3.0+
-
-```bash
+```sh
 git clone https://github.com/vialoyed-ctrl/KikoFlu-Enhanced.git
 cd KikoFlu-Enhanced
 flutter pub get
+flutter build apk --release --target-platform android-arm64
 ```
 
-### ビルドコマンド
+## 出典とライセンス
 
-| プラットフォーム | コマンド |
-|------------------|---------|
-| Android | `flutter build apk --release --split-per-abi` |
-| Windows | `flutter build windows --release` |
-| macOS | `flutter build macos --release` |
-| Linux | `flutter build linux --release` |
-| iOS | `./build_ios_xcode.sh` |
+[pa-jesusf/KikoFlu](https://github.com/pa-jesusf/KikoFlu) 3.8.2 を基にしています。原作者と貢献者の著作権を保持し、[GPL-3.0](LICENSE) を適用します。第三者のライセンスは `third_party/` にあります。
 
----
-
-## 関連プロジェクト
-
-- [Kikoeru](https://github.com/Number178/kikoeru-express) — セルフホスト型バックエンドサーバー
-- [asmr.one](https://www.asmr.one) — オンラインサービス
-
-## ライセンス
-
-[GPL-3.0 License](LICENSE)
-
-## お問い合わせ
-
-- **バグ報告**：[Issues](https://github.com/pa-jesusf/KikoFlu/issues)
-- **コミュニティ**：[Telegram](https://t.me/+PrkiN-pZrXs4ZTU1)
+2026-10-11：音響調整、メディアキー設定、全画面動画ジェスチャーを追加。字幕保存と検索を変更し、切断後の更新を修正。
